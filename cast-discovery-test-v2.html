@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HDR Photo TV Cast Discovery Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 18px; line-height: 1.45; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button { padding: 10px 14px; font: inherit; cursor: pointer; }
+    #castButton { font-weight: 650; }
+    #status { white-space: pre-wrap; background: #f4f4f4; padding: 12px; border-radius: 8px; margin-top: 16px; }
+    code { background: #f4f4f4; padding: 2px 5px; border-radius: 4px; }
+  </style>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('app') === 'default' ? 'default' : 'custom';
+    const CUSTOM_APP_ID = '63DAE551';
+    let castReady = false;
+
+    function writeStatus(msg) {
+      const el = document.getElementById('status');
+      if (el) el.textContent += (el.textContent ? '\n' : '') + msg;
+    }
+
+    function setMode(next) {
+      const u = new URL(location.href);
+      u.searchParams.set('app', next);
+      location.href = u.toString();
+    }
+
+    async function openCastPicker() {
+      if (!castReady) {
+        writeStatus('Cast API is not ready. Make sure this page is open in desktop Google Chrome, then reload it.');
+        return;
+      }
+      try {
+        writeStatus('Opening Cast device picker…');
+        await cast.framework.CastContext.getInstance().requestSession();
+      } catch (e) {
+        writeStatus('Cast picker result: ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    window.__onGCastApiAvailable = function(isAvailable) {
+      if (!isAvailable) {
+        writeStatus('Cast API unavailable in this browser. Open this page in desktop Google Chrome.');
+        return;
+      }
+
+      const appId = mode === 'default'
+        ? chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+        : CUSTOM_APP_ID;
+
+      const context = cast.framework.CastContext.getInstance();
+      context.setOptions({
+        receiverApplicationId: appId,
+        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+      });
+
+      castReady = true;
+      document.getElementById('mode').textContent = mode === 'default'
+        ? 'Default Media Receiver (CC1AD845)'
+        : 'HDR Photo TV (63DAE551)';
+      document.getElementById('castButton').disabled = false;
+      writeStatus('Cast API ready. Receiver: ' + appId);
+
+      context.addEventListener(
+        cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+        (event) => writeStatus('Session state: ' + event.sessionState)
+      );
+    };
+  </script>
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+</head>
+<body>
+  <h1>HDR Photo TV – Cast discovery test</h1>
+  <p>Current receiver: <strong id="mode">Loading…</strong></p>
+  <div class="row">
+    <button onclick="setMode('custom')">Test HDR Photo TV receiver</button>
+    <button onclick="setMode('default')">Test Default receiver</button>
+    <button id="castButton" onclick="openCastPicker()" disabled>Open Cast device picker</button>
+  </div>
+  <p>Choose a receiver mode, then press <strong>Open Cast device picker</strong>. We only care whether the LG G5 appears.</p>
+  <div id="status"></div>
+</body>
+</html>

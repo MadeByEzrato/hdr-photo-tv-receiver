@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HDR Photo TV Cast Discovery Test v3</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; line-height: 1.45; }
+    h1 { font-size: 1.6rem; }
+    button, a.mode {
+      display: inline-block; margin: 6px 8px 6px 0; padding: 10px 14px;
+      border: 1px solid #888; border-radius: 8px; background: #f5f5f5;
+      color: #111; text-decoration: none; cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #status {
+      margin-top: 18px; padding: 14px; border: 1px solid #aaa; border-radius: 8px;
+      white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    .active { font-weight: 700; border-width: 2px !important; }
+  </style>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode') || 'custom';
+    const CUSTOM_ID = '63DAE551';
+
+    function setStatus(text) {
+      document.getElementById('status').textContent = text;
+    }
+
+    function describeState(state) {
+      return String(state || 'unknown');
+    }
+
+    window.__onGCastApiAvailable = function(isAvailable) {
+      const openBtn = document.getElementById('openPicker');
+      if (!isAvailable) {
+        setStatus('Cast API reported unavailable.');
+        return;
+      }
+
+      try {
+        const ctx = cast.framework.CastContext.getInstance();
+        const receiverId = mode === 'default'
+          ? chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+          : CUSTOM_ID;
+
+        ctx.setOptions({
+          receiverApplicationId: receiverId,
+          autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+        });
+
+        const update = () => {
+          setStatus(
+            'Cast API ready.\n' +
+            'Mode: ' + mode + '\n' +
+            'Receiver ID: ' + receiverId + '\n' +
+            'Cast state: ' + describeState(ctx.getCastState()) + '\n' +
+            'Session state: ' + describeState(ctx.getSessionState())
+          );
+        };
+
+        ctx.addEventListener(
+          cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+          update
+        );
+        ctx.addEventListener(
+          cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+          update
+        );
+
+        openBtn.disabled = false;
+        update();
+      } catch (e) {
+        setStatus('Initialization error: ' + (e && e.stack ? e.stack : e));
+      }
+    };
+
+    async function openPicker() {
+      try {
+        const ctx = cast.framework.CastContext.getInstance();
+        setStatus(document.getElementById('status').textContent + '\nOpening Cast picker…');
+        await ctx.requestSession();
+      } catch (e) {
+        const code = (e && e.code) ? e.code : String(e);
+        setStatus(document.getElementById('status').textContent + '\nPicker result/error: ' + code);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById(mode === 'default' ? 'defaultMode' : 'customMode')
+        .classList.add('active');
+    });
+  </script>
+
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+</head>
+<body>
+  <h1>HDR Photo TV Cast Discovery Test v3</h1>
+  <p>This version uses Google's actual <code>CastContext.requestSession()</code> API to open the Cast device picker.</p>
+
+  <a id="customMode" class="mode" href="?mode=custom">Use HDR Photo TV receiver</a>
+  <a id="defaultMode" class="mode" href="?mode=default">Use Default receiver</a>
+  <br>
+  <button id="openPicker" disabled onclick="openPicker()">Open Cast device picker</button>
+
+  <div id="status">Waiting for Cast API…</div>
+
+  <p><strong>Test order:</strong> first use the custom receiver, open the picker and note whether the LG appears. Then switch to the Default receiver and repeat.</p>
+</body>
+</html>

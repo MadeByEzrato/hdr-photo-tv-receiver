@@ -1,0 +1,11 @@
+/* HDR Photo TV — Styled Media Receiver skin
+   Purpose: leave the HDR image unobstructed while media is playing. */
+
+.progressBar {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  background: transparent !important;
+}
